@@ -43,8 +43,8 @@
         .file-input {
             display: block;
             width: 100%;
-            max-width: calc(100% - 16px); /* Account for container padding */
-            padding: 8px; /* Reduced padding */
+            max-width: calc(100% - 16px);
+            padding: 8px;
             border: 2px dashed #d1d5db;
             border-radius: 8px;
             text-align: center;
@@ -119,6 +119,32 @@
             color: #1a1a1a;
         }
 
+        .result a {
+            color: #3b82f6;
+            text-decoration: none;
+        }
+
+        .result a:hover {
+            text-decoration: underline;
+        }
+
+        .convert-button {
+            width: 100%;
+            padding: 10px;
+            background: #10b981;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            margin-top: 12px;
+            transition: background 0.2s;
+        }
+
+        .convert-button:hover {
+            background: #059669;
+        }
+
         .error {
             color: #dc2626;
             margin-top: 16px;
@@ -128,7 +154,7 @@
         .image-preview {
             margin-top: 16px;
             text-align: center;
-            width: 100%;
+            width: adaptive;
         }
 
         .image-preview img {
@@ -160,6 +186,10 @@
             .result code {
                 font-size: 12px;
             }
+
+            .convert-button {
+                font-size: 12px;
+            }
         }
     </style>
 </head>
@@ -175,7 +205,10 @@
             </div>
             <button onclick="readQRCode()">Read QR Code</button>
         </div>
-        <div id="result" class="result" style="display: none;"></div>
+        <div id="result" class="result" style="display: none;">
+            <div id="urlContent"></div>
+            <button id="convertButton" class="convert-button" style="display: none;">Convert to Link</button>
+        </div>
         <div id="error" class="error" style="display: none;"></div>
     </div>
 
@@ -187,18 +220,22 @@
         }
 
         let pastedImage = null;
+        let scannedUrl = '';
         const previewImage = document.getElementById('previewImage');
+        const resultDiv = document.getElementById('result');
+        const urlContent = document.getElementById('urlContent');
+        const convertButton = document.getElementById('convertButton');
 
         async function readQRCode() {
             const fileInput = document.getElementById('fileInput');
-            const resultDiv = document.getElementById('result');
             const errorDiv = document.getElementById('error');
 
             // Reset UI
             resultDiv.style.display = 'none';
             errorDiv.style.display = 'none';
-            resultDiv.innerHTML = '';
-            errorDiv.innerHTML = '';
+            urlContent.innerHTML = '';
+            convertButton.style.display = 'none';
+            scannedUrl = '';
 
             try {
                 let imageData;
@@ -217,8 +254,10 @@
                 // Scan QR code using jsQR
                 const qrResult = jsQR(imageData.data, imageData.width, imageData.height);
                 if (qrResult && qrResult.data) {
+                    scannedUrl = qrResult.data;
                     resultDiv.style.display = 'block';
-                    resultDiv.innerHTML = `<pre><code>${qrResult.data}</code></pre>`;
+                    urlContent.innerHTML = `<pre><code>${scannedUrl}</code></pre>`;
+                    convertButton.style.display = 'block';
                 } else {
                     throw new Error('No QR code found in the image.');
                 }
@@ -227,6 +266,14 @@
                 errorDiv.innerHTML = error.message || 'Error reading QR code.';
             }
         }
+
+        // Convert URL to link
+        convertButton.addEventListener('click', () => {
+            if (scannedUrl) {
+                urlContent.innerHTML = `<a href="${scannedUrl}" target="_blank">${scannedUrl}</a>`;
+                convertButton.style.display = 'none'; // Hide button after conversion
+            }
+        });
 
         // Load image from file
         function loadImageFromFile(file) {
