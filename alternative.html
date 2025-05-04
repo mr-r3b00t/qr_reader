@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Code Reader</title>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: #1a1a1a;
+        }
+
+        .container {
+            background: white;
+            padding: 24px;
+            border-radius: 16px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            max-width: 500px;
+            width: 100%;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+
+        h1 {
+            font-size: 24px;
+            margin-bottom: 24px;
+            text-align: center;
+            color: #1a1a1a;
+        }
+
+        .input-section {
+            margin-bottom: 24px;
+        }
+
+        .file-input {
+            display: block;
+            width: 100%;
+            max-width: calc(100% - 16px);
+            padding: 8px;
+            border: 2px dashed #d1d5db;
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.2s;
+            box-sizing: border-box;
+        }
+
+        .file-input:hover {
+            border-color: #3b82f6;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .paste-input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            margin-top: 16px;
+            font-size: 16px;
+            resize: none;
+            box-sizing: border-box;
+            min-height: 100px;
+            background: #f8fafc;
+        }
+
+        .paste-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 16px;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: #2563eb;
+        }
+
+        .result {
+            margin-top: 24px;
+            padding: 16px;
+            background: #f8fafc;
+            border-radius: 8px;
+            word-break: break-all;
+        }
+
+        .result pre {
+            margin: 0 0 8px 0;
+            padding: 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+
+        .result code {
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 14px;
+            color: #1a1a1a;
+        }
+
+        .result a {
+            color: #3b82f6;
+            text-decoration: none;
+        }
+
+        .result a:hover {
+            text-decoration: underline;
+        }
+
+        .convert-button {
+            width: 100%;
+            padding: 10px;
+            background: #10b981;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            margin-top: 8px;
+            transition: background 0.2s;
+        }
+
+        .convert-button:hover {
+            background: #059669;
+        }
+
+        .error {
+            color: #dc2626;
+            margin-top: 16px;
+            text-align: center;
+        }
+
+        .image-preview {
+            margin-top: 16px;
+            text-align: center;
+            width: 100%;
+        }
+
+        .image-preview img {
+            max-width: 100%;
+            max-height: 200px;
+            height: auto;
+            border-radius: 8px;
+            display: none;
+            object-fit: contain;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 16px;
+            }
+
+            h1 {
+                font-size: 20px;
+            }
+
+            .file-input, .paste-input, button {
+                font-size: 14px;
+            }
+
+            .image-preview img {
+                max-height: 150px;
+            }
+
+            .result code {
+                font-size: 12px;
+            }
+
+            .convert-button {
+                font-size: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>QR Code Reader</h1>
+        <div class="input-section">
+            <label for="fileInput" class="file-input">Upload QR Code Image</label>
+            <input type="file" id="fileInput" accept="image/*">
+            <textarea class="paste-input" id="pasteInput" rows="4" placeholder="Paste QR code image here (e.g., from a screenshot)"></textarea>
+            <div class="image-preview">
+                <img id="previewImage" alt="QR Code Preview">
+            </div>
+            <button onclick="readQRCode()">Read QR Code</button>
+        </div>
+        <div id="result" class="result" style="display: none;"></div>
+        <div id="error" class="error" style="display: none;"></div>
+    </div>
+
+    <script>
+        // Ensure jsQR is available
+        if (!window.jsQR) {
+            document.getElementById('error').style.display = 'block';
+            document.getElementById('error').innerHTML = 'QR Scanner library failed to load.';
+        }
+
+        let pastedImage = null;
+        const previewImage = document.getElementById('previewImage');
+        const resultDiv = document.getElementById('result');
+
+        async function readQRCode() {
+            const fileInput = document.getElementById('fileInput');
+            const errorDiv = document.getElementById('error');
+
+            // Reset UI
+            resultDiv.style.display = 'none';
+            errorDiv.style.display = 'none';
+            resultDiv.innerHTML = '';
+
+            try {
+                let imgSrc;
+
+                if (fileInput.files.length > 0) {
+                    // Handle file upload
+                    imgSrc = URL.createObjectURL(fileInput.files[0]);
+                } else if (pastedImage) {
+                    // Handle pasted image
+                    imgSrc = URL.createObjectURL(pastedImage);
+                } else {
+                    throw new Error('Please upload an image or paste a QR code image.');
+                }
+
+                // Update preview
+                previewImage.src = imgSrc;
+                previewImage.style.display = 'block';
+
+                // Load image and scan for QR codes
+                const qrResults = await scanImageForQRCodes(imgSrc);
+
+                if (qrResults.length > 0) {
+                    resultDiv.style.display = 'block';
+                    qrResults.forEach((url, index) => {
+                        const urlId = `url-${index}`;
+                        resultDiv.innerHTML += `
+ eld
+                            <div id="${urlId}">
+                                <pre><code>${url}</code></pre>
+                                <button class="convert-button" onclick="convertToLink('${urlId}', '${url}')">Convert to Link</button>
+                            </div>
+                        `;
+                    });
+                } else {
+                    throw new Error('No QR codes found in the image.');
+                }
+            } catch (error) {
+                errorDiv.style.display = 'block';
+                errorDiv.innerHTML = error.message || 'Error reading QR code.';
+            }
+        }
+
+        // Scan image for multiple QR codes
+        async function scanImageForQRCodes(imgSrc) {
+            const img = new Image();
+            img.src = imgSrc;
+            await new Promise((resolve, reject) => {
+                img.onload = resolve;
+                img.onerror = () => reject(new Error('Failed to load image.'));
+            });
+
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            ctx.drawImage(img, 0, 0);
+
+            const results = new Set(); // Use Set to avoid duplicates
+
+            // Full image scan
+            scanRegion(canvas, 0, 0, img.width, img.height, results);
+
+            // Divide image into a 2x2 grid for additional scans
+            const regions = [
+                { x: 0, y: 0, width: img.width / 2, height: img.height / 2 }, // Top-left
+                { x: img.width / 2, y: 0, width: img.width / 2, height: img.height / 2 }, // Top-right
+                { x: 0, y: img.height / 2, width: img.width / 2, height: img.height / 2 }, // Bottom-left
+                { x: img.width / 2, y: img.height / 2, width: img.width / 2, height: img.height / 2 }, // Bottom-right
+            ];
+
+            for (const region of regions) {
+                scanRegion(canvas, region.x, region.y, region.width, region.height, results);
+            }
+
+            return Array.from(results);
+        }
+
+        // Scan a specific region of the canvas
+        function scanRegion(canvas, x, y, width, height, results) {
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = width;
+            tempCanvas.height = height;
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCtx.drawImage(canvas, x, y, width, height, 0, 0, width, height);
+
+            const imageData = tempCtx.getImageData(0, 0, width, height);
+            const qrResult = jsQR(imageData.data, imageData.width, imageData.height);
+
+            if (qrResult && qrResult.data) {
+                results.add(qrResult.data);
+            }
+        }
+
+        // Convert URL to link
+        function convertToLink(urlId, url) {
+            const urlDiv = document.getElementById(urlId);
+            urlDiv.innerHTML = `<a href="${url}" target="_blank">${url}</a>`;
+        }
+
+        // Handle paste event for images
+        document.getElementById('pasteInput').addEventListener('paste', (event) => {
+            const items = (event.clipboardData || event.originalEvent.clipboardData).items;
+            pastedImage = null;
+            for (const item of items) {
+                if (item.type.indexOf('image') !== -1) {
+                    pastedImage = item.getAsFile();
+                    document.getElementById('pasteInput').value = ''; // Clear textarea
+                    document.getElementById('fileInput').value = ''; // Clear file input
+                    break;
+                }
+            }
+            if (!pastedImage) {
+                document.getElementById('error').style.display = 'block';
+                document.getElementById('error').innerHTML = 'No image found in clipboard.';
+            }
+        });
+
+        // Automatically read QR code when file is uploaded
+        document.getElementById('fileInput').addEventListener('change', () => {
+            pastedImage = null;
+            document.getElementById('pasteInput').value = '';
+            previewImage.style.display = 'none';
+            if (document.getElementById('fileInput').files.length > 0) {
+                readQRCode();
+            }
+        });
+
+        // Clear file input and preview when paste input is used
+        document.getElementById('pasteInput').addEventListener('input', () => {
+            document.getElementById('fileInput').value = '';
+            if (!pastedImage) {
+                previewImage.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>
